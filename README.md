@@ -1,2 +1,2 @@
 # INF1316
-repositório de laboratórios de sistemas operacionais.
+repositório dos laboratórios de sistemas operacionais.
