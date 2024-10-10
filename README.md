@@ -1,5 +1,5 @@
 # INF1316
-- repositório dos laboratórios de sistemas operacionais.
+- repositório dos laboratórios e trabalhos da disciplina de sistemas operacionais da PUC-Rio.
 
 ## Relatório do T1: 
 
