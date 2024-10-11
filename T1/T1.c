@@ -48,12 +48,16 @@ void interControllerSim(MemoriaCompartilhada *shm) {
         shm->irq = 0;    // IRQ0 indica interrupção de relógio
         printf("InterControllerSim: Gerando IRQ0 (Time slice)\n");
 
-        // Gera interrupções aleatórias para dispositivos D1 e D2
-        int irq_type = rand() % 3;  // Gera IRQ1 ou IRQ2 aleatoriamente
-        if (irq_type == 1) {
+        // Gera IRQ1 com probabilidade de 10%
+        int irq_type = rand() % 100;  // Gera um número aleatório entre 0 e 99
+        if (irq_type < 10) {  // 10% de chance (0 a 9)
             shm->irq = 1;  // IRQ1 para dispositivo D1
             printf("InterControllerSim: Gerando IRQ1 (Dispositivo D1)\n");
-        } else if (irq_type == 2) {
+        }
+
+        // Gera IRQ2 com probabilidade de 5%
+        irq_type = rand() % 100;  // Gera outro número aleatório entre 0 e 99
+        if (irq_type < 5) {  // 5% de chance (0 a 4)
             shm->irq = 2;  // IRQ2 para dispositivo D2
             printf("InterControllerSim: Gerando IRQ2 (Dispositivo D2)\n");
         }
@@ -149,16 +153,18 @@ int main() {
 
     //cria o processo kernelSim
     pid_t kernel_pid = fork();
-    printf("KernelSim criado!\n");
+    
     if (kernel_pid == 0) {
+        printf("KernelSim criado!\n");
         kernelSim(shm);  //executa o kernelSim
         exit(0);
     }
 
     //cria o processo interControllerSim
     pid_t inter_pid = fork();
-    printf("InterControllerSim criado!\n");
+    
     if (inter_pid == 0) {
+        printf("InterControllerSim criado!\n");
         interControllerSim(shm);  //executa o interControllerSim
         exit(0);
     }
