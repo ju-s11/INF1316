@@ -71,33 +71,38 @@ void kernelSim(MemoriaCompartilhada *shm) {
     if (pids[0] == 0) { //bloco de código de P1.
         printf("P1 criado.\n"); 
         execl("./p1", "p1", (char *)NULL);
-        kill(pids[0], SIGSTOP);
+        exit(0);
     }
+    kill(pids[0], SIGSTOP);
 
     pids[1] = fork();
     shm->processo[1].estado = 2; //marca pi como READY
     if (pids[1] == 0) { //bloco de código de P2.
         printf("P2 criado.\n");
         execl("./p2", "p2", (char *)NULL);
-        kill(pids[1], SIGSTOP);
+        exit(0);
     }
+    kill(pids[1], SIGSTOP);
 
     pids[2] = fork();
     shm->processo[2].estado = 2; //marca pi como READY
     if (pids[2] == 0) { //bloco de código de P3.
         printf("P3 criado.\n");
-        execl("./p3", "p3", (char *)NULL); 
-        kill(pids[2], SIGSTOP);
+        execl("./p3", "p3", (char *)NULL);
+        exit(0);
     }
+    kill(pids[2], SIGSTOP);
 
+    int n = 0;
     //IRQ0 - interrupção por clock
-
     while (1) {
-        int n = 0;
+        // if (pids[0] == 0)
         kill(pids[n], SIGSTOP); //pausa o processo atual
-        //adicionar processo no fim da fila de prontos e ajustar a fila
         printf("KernelSim: Processo %d está na fila READY e foi pausado\n", n);
-        n++; //passa para o próximo processo na "fila" de prontos e executa ele. na verdade ele sempre executará o primeiro elemento da fila de prontos
+        
+        // Verifica o próximo processo na fila
+        n = (n + 1) % NUM_PROCESSOS;  // Lógica circular para alternar processos
+        // n++; //passa para o próximo processo na "fila" de prontos e executa ele. na verdade ele sempre executará o primeiro elemento da fila de prontos
         kill(pids[n], SIGCONT); //executa o próximo processo da fila de prontos
         sleep(TIMESLICE);
     }
@@ -136,7 +141,11 @@ int main() {
 
     //inicializa a memória compartilhada
     shm->irq = 0;
-    memset(shm->processo, 0, sizeof(shm->processo));
+    for (int i = 0; i < NUM_PROCESSOS; i++) {
+        shm->processo[i].estado = 0;  // Inicializa todos os processos no estado READY
+        shm->processo[i].pc = 0;
+        memset(shm->processo[i].acessos, 0, sizeof(shm->processo[i].acessos));  // Zera os acessos
+    }
 
     //cria o processo kernelSim
     pid_t kernel_pid = fork();
