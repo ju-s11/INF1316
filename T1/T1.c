@@ -39,8 +39,27 @@ typedef struct {
 
 //Time sharing
 
+// Função que simula o controlador de interrupções
 void interControllerSim(MemoriaCompartilhada *shm) {
+    srand(time(NULL));
+    while (1) {
+        // Gera IRQ0 a cada 500ms (time slice)
+        usleep(500000);  // 500 ms para representar o time slice
+        shm->irq = 0;    // IRQ0 indica interrupção de relógio
+        printf("InterControllerSim: Gerando IRQ0 (Time slice)\n");
+
+        // Gera interrupções aleatórias para dispositivos D1 e D2
+        int irq_type = rand() % 3;  // Gera IRQ1 ou IRQ2 aleatoriamente
+        if (irq_type == 1) {
+            shm->irq = 1;  // IRQ1 para dispositivo D1
+            printf("InterControllerSim: Gerando IRQ1 (Dispositivo D1)\n");
+        } else if (irq_type == 2) {
+            shm->irq = 2;  // IRQ2 para dispositivo D2
+            printf("InterControllerSim: Gerando IRQ2 (Dispositivo D2)\n");
+        }
+    }
 }
+
 
 // Função do kernelSim (gerencia os filhos)
 void kernelSim(MemoriaCompartilhada *shm) {
@@ -104,14 +123,14 @@ int main() {
     //cria a memória compartilhada
     shm_id = shmget(SHM_KEY, sizeof(MemoriaCompartilhada), IPC_CREAT | 0666);
     if (shm_id < 0) {
-        perror("Falha ao criar memória compartilhada");
+        perror("Falha ao criar memória compartilhada\n");
         exit(1);
     }
 
     //anexa a memória compartilhada
     shm = (MemoriaCompartilhada *)shmat(shm_id, NULL, 0);
     if (shm == (void *)-1) {
-        perror("Falha ao anexar memória compartilhada");
+        perror("Falha ao anexar memória compartilhada\n");
         exit(1);
     }
 
@@ -121,7 +140,7 @@ int main() {
 
     //cria o processo kernelSim
     pid_t kernel_pid = fork();
-    printf("KernelSim criado!");
+    printf("KernelSim criado!\n");
     if (kernel_pid == 0) {
         kernelSim(shm);  //executa o kernelSim
         exit(0);
@@ -129,7 +148,7 @@ int main() {
 
     //cria o processo interControllerSim
     pid_t inter_pid = fork();
-    printf("InterControllerSim criado!");
+    printf("InterControllerSim criado!\n");
     if (inter_pid == 0) {
         interControllerSim(shm);  //executa o interControllerSim
         exit(0);
