@@ -2,10 +2,8 @@
 #include <time.h>
 
 int main() {
-    printf("Números pares de 0 a 1000:\n");
-    
-    for (int i = 0; i <= 200; i += 2) {
-        printf("%d\n", i);
+    for (int i,j = 0; i <= 200; i++, j+=2) {
+        printf("Pares(%d) = %d\n", i, j);
         sleep(1);
     }
 

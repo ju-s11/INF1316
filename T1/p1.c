@@ -14,7 +14,7 @@ unsigned long long fatorial(int n) {
 
 int main() {
     for (int i = 0; i <= 20; i++) {
-        printf("O fatorial de %d é %llu\n", i, fatorial(i));
+        printf("Fatorial(%d) = %llu\n", i, fatorial(i));
         sleep(1);
     }
     return 0;
