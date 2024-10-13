@@ -46,7 +46,7 @@ void ajusta_prontos(Processo* prontos) {
     prontos[2].pc = 0;
     prontos[2].estado = 1;
     prontos[2].dispositivo = 0;
-    prontos[2].operacao = 'X'; 
+    prontos[2].operacao = 'X';
     prontos[2].acessos[0] = 0;
     prontos[2].acessos[1] = 0;
 }
@@ -67,7 +67,7 @@ void ajusta_em_espera(Processo *em_espera) {
     em_espera[2].pc = 0;
     em_espera[2].estado = 1;
     em_espera[2].dispositivo = 0;
-    em_espera[2].operacao = 'X'; 
+    em_espera[2].operacao = 'X';
     em_espera[2].acessos[0] = 0;
     em_espera[2].acessos[1] = 0;
 }
@@ -93,14 +93,16 @@ void interControllerSim(MemoriaCompartilhada *shm) {
         int irq_type = rand() % 100;  // Gera um número aleatório entre 0 e 99
         if (irq_type < 10) {  // 10% de chance (0 a 9)
             shm->irq = 1;  // IRQ1 para dispositivo D1
-            printf("InterControllerSim: Gerando IRQ1 (Dispositivo D1)\n");
+            shm->op = 'W'; // Define operação como escrita (W)
+            printf("InterControllerSim: Gerando IRQ1 (Dispositivo D1) - Operação: Write\n");
         }
 
         // Gera IRQ2 com probabilidade de 5%
         irq_type = rand() % 100;  // Gera outro número aleatório entre 0 e 99
         if (irq_type < 5) {  // 5% de chance (0 a 4)
             shm->irq = 2;  // IRQ2 para dispositivo D2
-            printf("InterControllerSim: Gerando IRQ2 (Dispositivo D2)\n");
+            shm->op = 'R'; // Define operação como leitura (R)
+            printf("InterControllerSim: Gerando IRQ2 (Dispositivo D2) - Operação: Read\n");
         }
     }
 }
@@ -294,7 +296,7 @@ int main() {
 
     //cria o processo kernelSim
     pid_t kernel_pid = fork();
-    
+
     if (kernel_pid == 0) {
         printf("KernelSim criado!\n");
         kernelSim(shm);  //executa o kernelSim
@@ -303,7 +305,7 @@ int main() {
 
     //cria o processo interControllerSim
     pid_t inter_pid = fork();
-    
+
     if (inter_pid == 0) {
         printf("InterControllerSim criado!\n");
         interControllerSim(shm);  //executa o interControllerSim
