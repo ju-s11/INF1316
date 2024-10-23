@@ -1,4 +1,3 @@
-// exemplo inicial modificado para os processos produtor e consumidor
 #include <sys/sem.h> 
 #include <unistd.h> 
 #include <stdio.h> 
@@ -7,117 +6,121 @@
 #include <sys/shm.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
-union semun
-{ 
+union semun { 
   int val; 
   struct semid_ds *buf; 
   ushort *array; 
 }; 
-// inicializa o valor do semáforo 
-int setSemValue(int semId); 
-// remove o semáforo 
-void delSemValue(int semId); 
-// operação P 
-int semaforoP(int semId); 
-//operação V 
-int semaforoV(int semId);
 
-int mutex;
+// Inicializa o valor do semáforo 
+int setSemValue(int semId, int value); 
+// Remove o semáforo 
+void delSemValue(int semId); 
+// Operação P 
+int semaforoP(int semId); 
+// Operação V 
+int semaforoV(int semId);
 
 int *variavel_compartilhada;
 
-int main (int argc, char * argv[]) 
-{ 
-  printf("Processso %d iniciado\n", getpid());
-  int i; 
-  char letra = 'o';
+int main() { 
   int semId, shmid; 
+  pid_t pid1, pid2;
 
-  // Criação de memória compartilhada
+  // Configuração da memória compartilhada
   shmid = shmget(IPC_PRIVATE, sizeof(int), IPC_CREAT | 0666);
-  variavel_compartilhada = (int*) shmat(shmid, NULL, 0); 
+  if (shmid == -1) {
+    perror("Erro ao criar memória compartilhada");
+    exit(1);
+  }
+  variavel_compartilhada = (int*) shmat(shmid, NULL, 0);
+  if (variavel_compartilhada == (int*) -1) {
+    perror("Erro ao associar memória compartilhada");
+    exit(1);
+  }
   *variavel_compartilhada = 0; // Inicializa variável compartilhada com 0
 
-  if (argc > 1) 
-  { 
-    semId = semget (8752, 1, 0666 | IPC_CREAT); //  1 semáforo (mutex)
-    setSemValue(semId); 
-    letra = 'x';
-    sleep (2); 
-      // Processo que soma 1 à variável
-      for (int i = 0; i < 10; i++)
-            {
-                semaforoP(semId); // Região crítica
-                *variavel_compartilhada += 1; 
-
-                printf("Processo %d: Somou 1, valor atual: %d\n", getpid(), *variavel_compartilhada);
-
-                semaforoV(semId); // Fim da região crítica
-                sleep(rand() % 3); // Simula tempo de produção
-            }
-
-            delSemValue(semId); // Remove semáforos ao final
-            shmdt(variavel_compartilhada); // Desanexa a memória compartilhada
-            shmctl(shmid, IPC_RMID, NULL); // Remove a memória compartilhada
-      }
-
-  else 
-  { 
-      while ((semId = semget(8752, 1, 0666)) < 0) // Aguardando semáforo
-    { 
-      putchar ('.'); fflush(stdout); 
-      sleep (1); 
-  } 
-  // Processo que soma 5 à variável
-  for (i=0; i<10; i++) 
-  { 
-    semaforoP(semId); // Região crítica
-    *variavel_compartilhada += 5;
-
-    printf("Processo %d: Somou 5, valor atual: %d\n", getpid(), *variavel_compartilhada);
-    semaforoV(semId); // Fim da região crítica
-    sleep(rand() % 2); // Simula tempo de processamento
-  } 
-  shmdt(variavel_compartilhada); // Desanexa a memória compartilhada
+  // Criação do semáforo
+  semId = semget(IPC_PRIVATE, 1, 0666 | IPC_CREAT);
+  if (semId == -1) {
+    perror("Erro ao criar semáforo");
+    exit(1);
   }
-  printf ("\nProcesso %d terminou\n", getpid()); 
-  if (argc > 1) 
-  { 
-    sleep(1); // mudei para n precisar esperando 10 segundos pra destruir o semáforo sempre que for rodar 
-    delSemValue(semId); 
-    } 
-    return 0; 
+  setSemValue(semId, 1); // Inicializa o semáforo com valor 1 para permitir que o primeiro processo comece
+
+  // Criar processos filho
+  pid1 = fork();
+  if (pid1 == 0) {
+    // Processo produtor (soma 1)
+    for (int i = 0; i < 10; i++) {
+      semaforoP(semId); // Espera a liberação do semáforo
+      *variavel_compartilhada += 1;
+      printf("Produtor: Somou 1, valor atual: %d\n", *variavel_compartilhada);
+      semaforoV(semId); // Libera o semáforo para o consumidor
+      sleep(rand() % 2);
+    }
+    shmdt(variavel_compartilhada);
+    exit(0);
   }
 
-int setSemValue(int semId) 
-{ 
-  union semun semUnion; 
-  semUnion.val = 1; 
-  return semctl(semId, 0, SETVAL, semUnion); 
-} 
-void delSemValue(int semId) 
-{ 
-  union semun semUnion; 
-  semctl(semId, 0, IPC_RMID, semUnion); 
-} 
-int semaforoP(int semId) 
-{ 
-  struct sembuf semB; 
-  semB.sem_num = 0; 
-  semB.sem_op = -1; 
-  semB.sem_flg = SEM_UNDO; 
-  semop(semId, &semB, 1); 
-  return 0; 
-} 
-int semaforoV(int semId) 
-{ 
-  struct sembuf semB; 
-  semB.sem_num = 0; 
-  semB.sem_op = 1; 
-  semB.sem_flg = SEM_UNDO; 
-  semop(semId, &semB, 1); 
+  pid2 = fork();
+  if (pid2 == 0) {
+    // Processo consumidor (soma 5)
+    for (int i = 0; i < 10; i++) {
+      semaforoP(semId); // Espera a liberação do semáforo
+      *variavel_compartilhada += 5;
+      printf("Consumidor: Somou 5, valor atual: %d\n", *variavel_compartilhada);
+      semaforoV(semId); // Libera o semáforo para o produtor
+      sleep(rand() % 2);
+    }
+    shmdt(variavel_compartilhada);
+    exit(0);
+  }
+
+  // Espera pelos processos filhos terminarem
+  wait(NULL);
+  wait(NULL);
+
+  // Resultado final
+  printf("Valor final: %d\n", *variavel_compartilhada);
+
+  // Limpeza
+  delSemValue(semId);
+  shmdt(variavel_compartilhada);
+  shmctl(shmid, IPC_RMID, 0);
+
   return 0; 
 }
 
-// thiago henriques 2211171
+int setSemValue(int semId, int value) { 
+  union semun semUnion; 
+  semUnion.val = value; 
+  return semctl(semId, 0, SETVAL, semUnion); 
+} 
+
+void delSemValue(int semId) { 
+  union semun semUnion; 
+  semctl(semId, 0, IPC_RMID, semUnion); 
+} 
+
+int semaforoP(int semId) {
+    struct sembuf semB;
+    semB.sem_num = 0;
+    semB.sem_op = -1;
+    semB.sem_flg = SEM_UNDO;
+    semop(semId, &semB, 1);
+    return 0;
+}
+
+int semaforoV(int semId) {
+    struct sembuf semB;
+    semB.sem_num = 0;
+    semB.sem_op = 1;
+    semB.sem_flg = SEM_UNDO;
+    semop(semId, &semB, 1);
+    return 0;
+}
+
+//thiago henriques 2211171

@@ -37,14 +37,15 @@ int main (int argc, char * argv[])
 { 
   printf("Processso %d iniciado\n", getpid());
   int i; 
-  char letra = 'o';
+  char letra;
+//   char letra = 'o';
   int semId; 
     
   if (argc > 1) 
   { 
     semId = semget (8752, 3, 0666 | IPC_CREAT); // 3 semaforos
     setSemValue(semId); 
-    letra = 'x';
+    // letra = 'x';
     sleep (2); 
       // Processo produtor
       for (int i = 0; i < 10; i++)
@@ -68,7 +69,7 @@ int main (int argc, char * argv[])
   { 
       while ((semId = semget(8752, 3, 0666)) < 0) // Também muda para 3
     { 
-      putchar ('.'); fflush(stdout); 
+    //   putchar ('.'); fflush(stdout); 
       sleep (1); 
   } 
 }
