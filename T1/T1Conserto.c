@@ -10,6 +10,7 @@
 #define TIMESLICE 500000 //time slice = 500 ms.
 #define PROB_1 10 //probabilidade de IRQ1 de 10% de chance (0 a 9)
 #define PROB_2 5 //probabilidade de IRQ2 de 5% de chance (0 a 4)
+#define MAX 10 // Defina um valor máximo de iterações
 
 #define EXECUTANDO 0
 #define BLOQUEADO 1
@@ -40,6 +41,14 @@ int irq;
 
 
 //função auxiliar de manipulação das filas "prontos" e "em_espera"
+
+//inicializar as filas de prontos e em espera
+void inicializa_filas() {
+    for (int i = 0; i < NUM_PROCESSOS; i++) {
+        prontos[i].pid = -1; // Inicializa PID como -1 para indicar que está vazio
+        em_espera[i].pid = -1; // Inicializa PID como -1 para indicar que está vazio
+    }
+}
 
 // prontos:
 void adiciona_prontos(Processo *prontos, Processo processo) {
@@ -199,7 +208,16 @@ void executa_processo(int n) {
     exit(1);  //sai com erro se a execução falhar
 }
 
-
+char determina_operacao(int tipo_operacao) {
+    if (tipo_operacao == 0) {
+        return READ;  // Operação de leitura
+    } else if (tipo_operacao == 1) {
+        return WRITE;  // Operação de escrita
+    } else if (tipo_operacao == 2) {
+        return EXECUTE;  // Operação de execução
+    }
+    return 0;  // Retorna 0 ou um valor padrão se o tipo não for válido
+}
 
 
 //função do controlador de interrupções (InterControllerSim)
@@ -208,6 +226,8 @@ void interControllerSim() {
 
     while (1) {
         usleep(TIMESLICE); //500 ms para representar o time slice
+
+        // Gerar IRQ0 (time slice)
         printf("InterControllerSim: Gerando IRQ0 (Time slice)\n");
         kill(getppid(), SIGALRM);  //envia SIGALRM para o kernelSim (pai)
 
@@ -216,7 +236,9 @@ void interControllerSim() {
         if (tipo_irq < PROB_1) {
             printf("InterControllerSim: Gerando IRQ1 (Dispositivo D1)\n");
             kill(getppid(), SIGUSR1);  //envia SIGUSR1 para o kernelSim (pai)
-            //tipo de operação do dispositivo: R, W e X
+            // Tipo de operação no dispositivo: leitura (R), escrita (W) ou execução (X)
+            int tipo_operacao = rand() % 3; // 0, 1 ou 2
+            op = determina_operacao(tipo_operacao); // Chama a função para determinar a operação
         }
 
         //gera IRQ2 com probabilidade de 5%
@@ -224,7 +246,9 @@ void interControllerSim() {
         if (tipo_irq < PROB_2) {
             printf("InterControllerSim: Gerando IRQ2 (Dispositivo D2)\n");
             kill(getppid(), SIGUSR2);  //envia SIGUSR2 para o kernelSim (pai)
-            //tipo de operação do dispositivo: R, W e X
+            // Tipo de operação no dispositivo: leitura (R), escrita (W) ou execução (X)
+            int tipo_operacao = rand() % 3;
+            op = determina_operacao(tipo_operacao); // Chama a função para determinar a operação
         }
     }
 }
@@ -245,9 +269,9 @@ void kernelSim() {
             printf("P%d criado com PID %d.\n", (i + 1), getpid());
             executa_processo(i);
         } else if (pids[i] > 0) {  //código do processo pai (kernelSim)
-            processos[i].pid = pids[i];
-            processos[i].pc = 0;
-            processos[i].estado = 1;  //processo pausado inicialmente
+            processo[i].pid = pids[i];
+            processo[i].pc = 0;
+            processo[i].estado = 1;  //processo pausado inicialmente
             processo[i].dispositivo = 0; //0, pois nenhum dispositivo está acessando o processo.
             processo[i].operacao = 0; //0, pois nenhuma operação está sendo realizada
             processo[i].acessos[0] = 0; //0, pois nenhum dispositivo acessou o processo ainda.
@@ -278,15 +302,15 @@ void kernelSim() {
         printf("FILA DE EM ESPERA criada!\n");
     }
 
-    while (shm->processo[0].pc < MAX || shm->processo[1].pc < MAX || shm->processo[2].pc < MAX) {
+    while (processo[0].pc < MAX || processo[1].pc < MAX || processo[2].pc < MAX) {
         for (int i = 0; i < NUM_PROCESSOS; i++) {
            
             for (int j = 0; j < NUM_PROCESSOS; j++) {
-                if (shm->processo[j].pid == prontos[0].pid) { //executa o primeiro processo da fila de prontos.
-                    kill(shm->processo[j].pid, SIGCONT);
-                    shm->processo[j].pc++;
-                    printf("KernelSim: Processo %d executando. PC: %d.\n", shm->processo[j].pid, shm->processo[j].pc);
-                    shm->processo[j].estado = 0; //muda o estado do processo para executando!
+                if (processo[j].pid == prontos[0].pid) { //executa o primeiro processo da fila de prontos.
+                    kill(processo[j].pid, SIGCONT);
+                    processo[j].pc++;
+                    printf("KernelSim: Processo %d executando. PC: %d.\n", processo[j].pid, processo[j].pc);
+                    processo[j].estado = 0; //muda o estado do processo para executando!
                     ajusta_prontos(prontos); //tira processo da fila de prontos e ajusta o array...
                 }
             }
