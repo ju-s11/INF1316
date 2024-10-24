@@ -11,6 +11,16 @@
 #define PROB_1 10 //probabilidade de IRQ1 de 10% de chance (0 a 9)
 #define PROB_2 5 //probabilidade de IRQ2 de 5% de chance (0 a 4)
 
+#define EXECUTANDO 0
+#define BLOQUEADO 1
+#define FINALIZADO 2
+
+#define READ 'R'
+#define WRITE 'W'
+#define EXECUTE 'X'
+
+
+
 //estrutura para representar o contexto de um processo de aplicação
 typedef struct {
     pid_t pid;
@@ -31,23 +41,23 @@ int irq;
 
 //função auxiliar de manipulação das filas "prontos" e "em_espera"
 
-// prontos: 
+// prontos:
 void adiciona_prontos(Processo *prontos, Processo processo) {
     for (int i = 0; i < NUM_PROCESSOS; i++) {
         if (prontos[i].pid == -1) {
             prontos[i] = processo;
-            write(STDOUT_FILENO, "Processo adicionado à fila de prontos.\n", strlen("Processo adicionado à fila de prontos.\n"));
+            printf("Processo adicionado à fila de prontos.\n");
             return;
         }
     }
-    write(STDOUT_FILENO, "Fila de prontos cheia.\n", strlen("Fila de prontos cheia.\n"));
+   printf("Fila de prontos cheia.\n");
 }
 
 void ajusta_prontos(Processo *prontos) {
     for (int i = 0; i < NUM_PROCESSOS - 1; i++) {
         prontos[i] = prontos[i + 1]; // Move todos os processos para frente
     }
-    // Esvazia o último da lista...
+    // Esvazia o último da lista:
     prontos[NUM_PROCESSOS - 1].pid = -1;
     prontos[NUM_PROCESSOS - 1].pc = 0;
     prontos[NUM_PROCESSOS - 1].estado = 1;
@@ -55,7 +65,7 @@ void ajusta_prontos(Processo *prontos) {
     prontos[NUM_PROCESSOS - 1].operacao = 0; 
     prontos[NUM_PROCESSOS - 1].acessos[0] = 0;
     prontos[NUM_PROCESSOS - 1].acessos[1] = 0;
-    write(STDOUT_FILENO, "Lista de prontos ajustada.\n", strlen("Lista de prontos ajustada.\n"));
+    printf("Lista de prontos ajustada.\n");
 }
 
 // em espera:
@@ -63,18 +73,18 @@ void adiciona_em_espera(Processo *em_espera, Processo processo) {
     for (int i = 0; i < NUM_PROCESSOS; i++) {
         if (em_espera[i].pid == -1) {
             em_espera[i] = processo;
-            write(STDOUT_FILENO, "Processo adicionado à fila de espera.\n", strlen("Processo adicionado à fila de espera.\n"));
-            return;
+           printf("Processo adicionado à fila de espera.\n");
+           return;
         }
     }
-    write(STDOUT_FILENO, "Fila de espera cheia.\n", strlen("Fila de espera cheia.\n"));
+    printf("Fila de espera cheia.\n");
 }
 
 void ajusta_em_espera(Processo *em_espera) {
     for (int i = 0; i < NUM_PROCESSOS - 1; i++) {
         em_espera[i] = em_espera[i + 1]; // Move todos os processos para frente
     }
-    // Esvazia o último da lista...
+    // Esvazia o último da lista:
     em_espera[NUM_PROCESSOS - 1].pid = -1;
     em_espera[NUM_PROCESSOS - 1].pc = 0;
     em_espera[NUM_PROCESSOS - 1].estado = 1;
@@ -82,7 +92,7 @@ void ajusta_em_espera(Processo *em_espera) {
     em_espera[NUM_PROCESSOS - 1].operacao = 0; 
     em_espera[NUM_PROCESSOS - 1].acessos[0] = 0;
     em_espera[NUM_PROCESSOS - 1].acessos[1] = 0;
-    write(STDOUT_FILENO, "Lista de espera ajustada.\n", strlen("Lista de espera ajustada.\n"));
+    printf("Lista de espera ajustada.\n");
 }
 
 // Funções de Solicitação de Acesso:
@@ -93,7 +103,7 @@ void solicitar_acesso_d1(Processo *proc) {
     proc->estado = 1; // Muda para estado bloqueado
     // Adiciona o processo à fila de bloqueados
     adiciona_em_espera(em_espera, *proc); // Adiciona o processo à fila de espera
-    write(STDOUT_FILENO, "Processo bloqueado esperando por D1\n", strlen("Processo bloqueado esperando por D1\n"));
+   printf("Processo bloqueado esperando por D1\n");
 }
 
 //d2
@@ -102,29 +112,26 @@ void solicitar_acesso_d2(Processo *proc) {
     proc->estado = 1; // Muda para estado bloqueado
     // Adiciona o processo à fila de bloqueados
     adiciona_em_espera(em_espera, *proc); // Adiciona o processo à fila de espera
-    write(STDOUT_FILENO, "Processo bloqueado esperando por D2\n", strlen("Processo bloqueado esperando por D2\n"));
+    printf("Processo bloqueado esperando por D2\n");
 }
 
 
 //funções para tratamento de sinais
 //IRQ0
 void handle_sigalrm(int signum) {
-    write(STDOUT_FILENO, "IRQ0: SIGALRM recebido!\n", strlen("IRQ0: SIGALRM recebido!\n"));
-    // printf tava bugando com os sinais
+    printf("IRQ0: SIGALRM recebido!\n");
     for (int i = 0; i < NUM_PROCESSOS; i++) 
     { 
         kill(processo[i].pid, SIGSTOP);
         processo[i].estado = 1; //atualizar contexto do processo
-        const char *message = "KernelSim: Processo 1234 foi adicionado na fila PRONTOS\n";
-        write(STDOUT_FILENO, message, strlen(message));
+        printf("KernelSim: Processo %d foi adicionado na fila PRONTOS\n", processo[i].pid);
         adiciona_prontos(prontos, processo[i]); //adiciona no fim do array de prontos.
     }
 }
 
 //IRQ1
 void handle_sigusr1(int signum) {
-    const char *message = "IRQ1: SIGUSR1 recebido - interrupção do dispositivo D1\n";
-    write(STDOUT_FILENO, message, strlen(message));
+    printf("IRQ1: SIGUSR1 recebido - interrupção do dispositivo D1\n");
     for (int i = 0; i < NUM_PROCESSOS; i++) {
         if (processo[i].dispositivo == 1)  
         { // Verifica se o processo está aguardando D1
@@ -136,8 +143,7 @@ void handle_sigusr1(int signum) {
             adiciona_em_espera(em_espera, processo[i]); //add no ultimo lugar desocupado do array de espera.
             sleep(1); //D1 demora 1 segundo para dar resposta.
             ajusta_em_espera(em_espera);
-            const char *message_ready = "KernelSim: Processo %d foi adicionado na fila PRONTOS\n";
-            write(STDOUT_FILENO, message_ready, strlen(message_ready));
+            printf("KernelSim: Processo %d foi adicionado na fila PRONTOS\n", processo[i].pid);
             adiciona_prontos(prontos, processo[i]);
         }
     }
@@ -145,24 +151,32 @@ void handle_sigusr1(int signum) {
 
 //IRQ2
 void handle_sigusr2(int signum) {
-    const char *message = "IRQ2: SIGUSR2 recebido - interrupção do dispositivo D2\n";
-    write(STDOUT_FILENO, message, strlen(message));
-
+    printf("IRQ2: SIGUSR2 recebido - interrupção do dispositivo D2\n");
     for (int i = 0; i < NUM_PROCESSOS; i++) { 
         kill(processo[i].pid, SIGSTOP); // Para o processo atual
         //guardar contexto do processo
         processo[i].estado = 1;
         processo[i].dispositivo = 2; //D2 fez o acesso.
         processo[i].operacao = op;
-        processo[i].acessos[i] += 1; //adiciona 1 ao número de acessos pelo D2.
+        processo[i].acessos[1] += 1; //adiciona 1 ao número de acessos pelo D2.
         adiciona_em_espera(em_espera, processo[i]);
         sleep(2); //D2 demora 2 segundos para dar resposta.
-        ajusta_em_espera(em_espera);
-        // aqui o print estava funcionando entao mantive:
         printf("KernelSim: Processo %d foi adicionado na fila PRONTOS\n", processo[i].pid);
         adiciona_prontos(prontos, processo[i]);
     }
 }
+
+// Inicializando a estrutura
+void inicializa_processo() {
+    processo[0].pid = getpid();   // Atribui o PID do processo atual
+    processo[0].pc = 0;           // Inicializa o contador de programa
+    processo[0].estado = EXECUTANDO;  // Estado inicial: EXECUTANDO
+    processo[0].dispositivo = 0;   // Nenhum dispositivo associado inicialmente
+    processo[0].operacao = READ;   // Operação inicial: READ (leitura)
+    processo[0].acessos[0] = 0;    // Acessos ao dispositivo D1
+    processo[0].acessos[1] = 0;    // Acessos ao dispositivo D2
+}
+
 
 //função para executar o programa certo!
 void executa_processo(int n) {
@@ -170,6 +184,8 @@ void executa_processo(int n) {
         printf("Número inválido: %d. Escolha um valor maior que 1 e menor ou igual a 6.\n", n);
         return;
     }
+
+    inicializa_processo();  // Inicializa o processo antes de executar
 
     //constrói o nome do executável baseado no número n
     char executavel[10];
