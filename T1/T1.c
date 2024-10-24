@@ -46,7 +46,7 @@ void ajusta_prontos(Processo* prontos) {
     prontos[2].pc = 0;
     prontos[2].estado = 1;
     prontos[2].dispositivo = 0;
-    prontos[2].operacao = 'X';
+    prontos[2].operacao = 'X'; 
     prontos[2].acessos[0] = 0;
     prontos[2].acessos[1] = 0;
 }
@@ -67,7 +67,7 @@ void ajusta_em_espera(Processo *em_espera) {
     em_espera[2].pc = 0;
     em_espera[2].estado = 1;
     em_espera[2].dispositivo = 0;
-    em_espera[2].operacao = 'X';
+    em_espera[2].operacao = 'X'; 
     em_espera[2].acessos[0] = 0;
     em_espera[2].acessos[1] = 0;
 }
@@ -84,7 +84,6 @@ void adiciona_em_espera(Processo* em_espera, Processo processo) {
 void interControllerSim(MemoriaCompartilhada *shm) {
     srand(time(NULL));
     while (1) {
-        // Gera IRQ0 a cada 500ms (time slice)
         usleep(TIMESLICE);  // 500 ms para representar o time slice
         shm->irq = 0;    // IRQ0 indica interrupção de relógio
         printf("InterControllerSim: Gerando IRQ0 (Time slice)\n");
@@ -116,18 +115,19 @@ void kernelSim(MemoriaCompartilhada *shm) {
 
     //P1
     pids[0] = fork();
-
+    printf("PID P1: %d\n", pids[0]);
+    printf(" %d\n", getpid());
     if (pids[0] < 0) {
     perror("Erro ao criar processo P1");
     exit(1);
     }
-    if (pids[0] == 0) { //bloco de código de P1.
+    if (pids[0] >= 0) { //bloco de código de P1.
         printf("P1 criado.\n"); 
         if (execl("./p1", "p1", (char *)NULL) == -1) {
             perror("Erro ao executar p1");
             exit(1);
         }
-        shm->processo[0].pid = getpid();
+        shm->processo[0].pid = pids[0];
         shm->processo[0].pc = 0;
         shm->processo[0].estado = 0;
         shm->processo[0].dispositivo = 0; //0, pois nenhum dispositivo está acessando o processo.
@@ -136,8 +136,9 @@ void kernelSim(MemoriaCompartilhada *shm) {
         shm->processo[0].acessos[1] = 0;
         exit(0);
     }
-    kill(pids[0], SIGSTOP);
+    kill(shm->processo[0].pid, SIGSTOP);
     shm->processo[0].estado = 1;
+    printf("PID P1 na memória: %d", shm->processo[0].pid);
 
 
     //P2
@@ -146,7 +147,7 @@ void kernelSim(MemoriaCompartilhada *shm) {
     perror("Erro ao criar processo P2");
     exit(1);
     }
-    if (pids[1] == 0) { //bloco de código de P2.
+    if (pids[1] >= 0) { //bloco de código de P2.
         printf("P2 criado.\n");
         if (execl("./p1", "p1", (char *)NULL) == -1) {
             perror("Erro ao executar p1");
@@ -163,6 +164,7 @@ void kernelSim(MemoriaCompartilhada *shm) {
     }
     kill(pids[1], SIGSTOP);
     shm->processo[1].estado = 1;
+    printf("PID P2 na memória: %d", shm->processo[1].pid);
 
 
     //P3
@@ -171,7 +173,7 @@ void kernelSim(MemoriaCompartilhada *shm) {
     perror("Erro ao criar processo P3");
     exit(1);
     }
-    if (pids[2] == 0) { //bloco de código de P3.
+    if (pids[2] >= 0) { //bloco de código de P3.
         printf("P3 criado.\n");
         if (execl("./p3", "p3", (char *)NULL) == -1) {
             perror("Erro ao executar p3.");
@@ -188,6 +190,8 @@ void kernelSim(MemoriaCompartilhada *shm) {
     }
     kill(pids[2], SIGSTOP);
     shm->processo[2].estado = 1;
+    printf("PID P3 na memória: %d", shm->processo[1].pid);
+
 
 
     Processo prontos[NUM_PROCESSOS]; //array com processos prontos, que podem ser executados em seguida.
@@ -207,9 +211,12 @@ void kernelSim(MemoriaCompartilhada *shm) {
         shm->processo[i].acessos[1] = 0;
     }
 
-    kill(shm->processo[0].pid, SIGCONT);
     shm->processo[0].pc++;
     printf("KernelSim: Processo %d executando. PC: %d.\n", shm->processo[0].pid, shm->processo[0].pc);
+    
+    kill(shm->processo[0].pid, SIGCONT);
+    // shm->processo[0].pc++;
+    // printf("KernelSim: Processo %d executando. PC: %d.\n", shm->processo[0].pid, shm->processo[0].pc);
     shm->processo[0].estado = 0;
     ajusta_prontos(prontos);
 
@@ -296,7 +303,7 @@ int main() {
 
     //cria o processo kernelSim
     pid_t kernel_pid = fork();
-
+    
     if (kernel_pid == 0) {
         printf("KernelSim criado!\n");
         kernelSim(shm);  //executa o kernelSim
@@ -305,7 +312,7 @@ int main() {
 
     //cria o processo interControllerSim
     pid_t inter_pid = fork();
-
+    
     if (inter_pid == 0) {
         printf("InterControllerSim criado!\n");
         interControllerSim(shm);  //executa o interControllerSim
